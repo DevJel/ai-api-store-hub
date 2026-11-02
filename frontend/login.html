@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AI-API Store Hub · Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:#F0F2F5;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:24px}
+.shell{width:100%;max-width:420px;background:#F2F3F5;border-radius:24px;overflow:hidden;border:1px solid #E5E7EB;box-shadow:0 2px 16px rgba(0,0,0,.06);min-height:820px;display:flex;flex-direction:column}
+.hero{height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;background:#F2F3F5}
+.logo{width:52px;height:52px;border-radius:12px;background:#fff;border:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center}
+.logo svg{width:32px;height:32px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;color:#0F172A;margin-top:20px}
+.sub{margin-top:8px;font-size:13px;font-weight:500;letter-spacing:4px;color:#6B7280;text-transform:uppercase}
+.divider{margin-top:16px;display:flex;align-items:center;gap:10px}
+.divider span.line{height:1px;width:24px;background:#E5E7EB}
+.divider span.dot{width:4px;height:4px;border-radius:50%;background:#14B8A6}
+.tagline{margin-top:12px;font-size:11px;font-weight:500;letter-spacing:.08em;color:#9CA3AF;text-transform:uppercase;text-align:center}
+.rule{height:1px;background:#E5E7EB}
+.panel{background:#fff;border-radius:24px 24px 0 0;margin-top:-1px;padding:28px 24px;flex:1;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+label{font-size:13px;font-weight:600;color:#111827;display:block;margin-bottom:8px}
+.field{border:1px solid #E5E7EB;border-radius:12px;background:#fff;transition:border-color .15s}
+.field:focus-within{border-color:#111827}
+input{width:100%;height:48px;border:0;background:transparent;padding:0 16px;font-size:14px;color:#111827;outline:none;font-family:inherit}
+input::placeholder{color:#9CA3AF}
+.pwd-wrap{position:relative}
+.pwd-wrap input{padding-right:48px}
+.eye{position:absolute;right:2px;top:2px;bottom:2px;width:40px;border:0;background:transparent;border-radius:9px;color:#9CA3AF;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.row{margin-top:14px;display:flex;justify-content:space-between;align-items:center}
+.row a{font-size:13px;font-weight:500;color:#111827;text-decoration:none}
+.row a:hover{text-decoration:underline}
+.secure{font-size:11px;font-weight:500;letter-spacing:.04em;color:#9CA3AF;text-transform:uppercase}
+button.login{margin-top:28px;height:48px;width:100%;border:0;border-radius:12px;background:#111827;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+button.login:hover{background:#0D121F}
+.signup{margin-top:20px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;color:#6B7280}
+.signup a{font-weight:600;color:#111827;text-decoration:none}
+.signup a:hover{text-decoration:underline}
+.footer{margin-top:auto;padding-top:24px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.status{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:500;letter-spacing:.06em;color:#9CA3AF;text-transform:uppercase}
+.status i{width:4px;height:4px;border-radius:50%;background:#14B8A6;display:inline-block}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none"><path d="M16 3.5L25 9.25V20.75L16 26.5L7 20.75V9.25L16 3.5Z" stroke="#111827" stroke-width="1.4" stroke-linejoin="round"/><g stroke="#111827" stroke-width="1.2" stroke-linecap="round" opacity=".9"><line x1="16" y1="15.5" x2="16" y2="7"/><line x1="16" y1="15.5" x2="9.5" y2="20.5"/><line x1="16" y1="15.5" x2="22.5" y2="20.5"/></g><circle cx="16" cy="6" r="2" fill="#111827"/><circle cx="8.5" cy="21.5" r="2" fill="#111827"/><circle cx="23.5" cy="21.5" r="2" fill="#111827"/><circle cx="16" cy="15.5" r="3.2" fill="#14B8A6"/></svg>
+    </div>
+    <h1>AI-API</h1>
+    <div class="sub">STORE HUB</div>
+    <div class="divider"><span class="line"></span><span class="dot"></span><span class="line"></span></div>
+    <p class="tagline">Your Gateway to Intelligent APIs</p>
+  </div>
+  <div class="rule"></div>
+  <div class="panel">
+    <form onsubmit="return false">
+      <div style="margin-bottom:18px">
+        <label for="email">Email ID</label>
+        <div class="field"><input id="email" type="email" placeholder="Enter Email ID"/></div>
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <div class="field pwd-wrap">
+          <input id="password" type="password" placeholder="Enter Password"/>
+          <button type="button" class="eye" aria-label="Show password">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a19.43 19.43 0 0 1 4.2-4.9"/><path d="M9.59 9.59A3.5 3.5 0 0 0 12 15.5a3.5 3.5 0 0 0 2.41-5.91"/><path d="M1 1l22 22"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="row">
+        <a href="#">Forgot Password?</a>
+        <span class="secure">Secure Login</span>
+      </div>
+      <button type="submit" class="login">Login</button>
+      <div class="signup">
+        <span style="height:1px;width:28px;background:#E5E7EB"></span>
+        Not registered? <a href="#">Signup</a>
+        <span style="height:1px;width:28px;background:#E5E7EB"></span>
+      </div>
+    </form>
+    <div class="footer">
+      <div class="status"><i></i> API Status: Operational</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
