@@ -1,0 +1,23 @@
+{
+  "name": "ai-api-store-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant AI API Store Hub on Cloudflare",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create ai-api-hub",
+    "db:migrate": "wrangler d1 execute ai-api-hub --file=./src/db/schema.sql",
+    "db:migrate:local": "wrangler d1 execute ai-api-hub --local --file=./src/db/schema.sql",
+    "types": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241022.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.84.0"
+  },
+  "dependencies": {
+    "hono": "^4.6.5",
+    "jose": "^5.9.6"
+  }
+}
