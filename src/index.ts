@@ -145,6 +145,24 @@ app.post('/keys', async (c) => {
   return c.json({ apiKey: raw, prefix: record.key_prefix, id: record.id });
 });
 
+app.get('/keys', async (c) => {
+  const tenantOrErr = await requireSession(c);
+  if (tenantOrErr instanceof Response) return tenantOrErr;
+  const rows = await c.env.DB.prepare(
+    'SELECT id, name, key_prefix, scopes, rate_limit_rpm, is_active, last_used_at, created_at FROM api_keys WHERE tenant_id = ? ORDER BY created_at DESC'
+  ).bind(tenantOrErr.id).all();
+  return c.json({ data: rows.results ?? [] });
+});
+
+app.delete('/keys/:id', async (c) => {
+  const tenantOrErr = await requireSession(c);
+  if (tenantOrErr instanceof Response) return tenantOrErr;
+  const result = await c.env.DB.prepare('UPDATE api_keys SET is_active = 0 WHERE id = ? AND tenant_id = ?')
+    .bind(c.req.param('id'), tenantOrErr.id).run();
+  if ((result.meta?.changes || 0) !== 1) return c.json({ error: 'API key not found' }, 404);
+  return c.json({ revoked: true });
+});
+
 app.get('/usage', async (c) => {
   const tenantOrErr = await requireSession(c);
   if (tenantOrErr instanceof Response) return tenantOrErr;
@@ -218,7 +236,12 @@ app.get('/v1/models', async (c) => {
 app.post('/v1/chat/completions', async (c) => {
   const auth = await requireApiKey(c);
   if (!auth) return c.json({ error: { message: 'Invalid API key', type: 'authentication_error' } }, 401);
-
+  const recent = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM usage_logs WHERE api_key_id = ? AND created_at > datetime('now', '-1 minute')"
+  ).bind(auth.key.id).first<{ count: number }>();
+  if (Number(recent?.count || 0) >= auth.key.rate_limit_rpm) {
+    return c.json({ error: { message: 'API key rate limit exceeded', type: 'rate_limit_error' } }, 429);
+  }
   const body = await c.req.json();
   return handleChatCompletions(c.env, body, auth.tenant.id, auth.key.id);
 });
