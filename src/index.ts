@@ -41,9 +41,9 @@ app.post('/auth/register', async (c) => {
   const passwordHash = await hashPassword(body.password);
 
   await c.env.DB.prepare(
-    'INSERT INTO tenants (id, email, password_hash, name, credits_balance) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO tenants (id, email, password_hash, name, credits_balance) VALUES (?, ?, ?, ?, 0)'
   )
-    .bind(id, body.email.toLowerCase(), passwordHash, body.name ?? null, 5.0) // $5 free credits
+    .bind(id, body.email.toLowerCase(), passwordHash, body.name ?? null)
     .run();
 
   // Create a default API key
@@ -51,12 +51,12 @@ app.post('/auth/register', async (c) => {
 
   const token = await createSessionToken(
     { id, email: body.email, name: body.name ?? null, plan: 'free', credits_balance: 5 },
-    c.env.SESSION_SECRET || 'dev-secret-change-me'
+    c.env.SESSION_SECRET
   );
 
   return c.json({
     token,
-    tenant: { id, email: body.email, name: body.name, credits: 5 },
+    tenant: { id, email: body.email.toLowerCase(), name: body.name, credits: 0 },
     apiKey: raw, // shown only once
     message: 'Account created. Save your API key – it will not be shown again.',
   });
@@ -86,7 +86,7 @@ app.post('/auth/login', async (c) => {
     credits_balance: row.credits_balance,
   };
 
-  const token = await createSessionToken(tenant, c.env.SESSION_SECRET || 'dev-secret-change-me');
+  if (!c.env.SESSION_SECRET || c.env.SESSION_SECRET.length < 32) return c.json({ error: 'Authentication service is not configured' }, 503);\n  const token = await createSessionToken(tenant, c.env.SESSION_SECRET);
 
   return c.json({
     token,
