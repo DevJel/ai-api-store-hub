@@ -29,7 +29,7 @@ admin.get('/admin-api/overview', async (c) => {
     c.env.DB.prepare("SELECT COUNT(*) AS requests, COALESCE(SUM(cost),0) AS provider_cost_usd FROM usage_logs WHERE created_at >= datetime('now','-30 days')").first<any>(),
     c.env.DB.prepare("SELECT COALESCE(SUM(platform_share_cents),0) AS platform_cents, COALESCE(SUM(provider_share_cents),0) AS provider_cents, COALESCE(SUM(customer_charge_cents),0) AS charged_cents FROM revenue_allocations WHERE created_at >= datetime('now','-30 days')").first<any>(),
   ]);
-  return c.json({ users, payments: { paidCount: paid?.count || 0, paidPhp: Number(paid?.cents || 0) / 100, pendingCount: pending?.count || 0, pendingPhp: pending?.php || 0 }, walletLiabilityPhp: Number(balance?.cents || 0) / 100, usage30d: usage, revenueSplit30d: { platformPhp: Number(split?.platform_cents || 0) / 100, providerPhp: Number(split?.provider_cents || 0) / 100, chargedPhp: Number(split?.charged_cents || 0) / 100 } });
+  return c.json({ users, payments: { paidCount: paid?.count || 0, paidPhp: Number(paid?.cents || 0), pendingCount: pending?.count || 0, pendingPhp: pending?.php || 0 }, walletLiabilityPhp: Number(balance?.cents || 0) / 100, usage30d: usage, revenueSplit30d: { platformPhp: Number(split?.platform_cents || 0) / 100, providerPhp: Number(split?.provider_cents || 0) / 100, chargedPhp: Number(split?.charged_cents || 0) / 100 } });
 });
 
 admin.get('/admin-api/users', async (c) => {
