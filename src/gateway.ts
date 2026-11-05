@@ -1,113 +1,42 @@
 import type { Env } from './types';
-import { getModelPrice, calculateCost, recordUsage, hasSufficientCredits } from './billing';
+import { getModelPrice, calculateCost, customerChargeCentavos, getUsdPhpRate, reserveWallet, settleWalletReservation, refundWalletReservation, recordUsage } from './billing';
 
-interface ChatMessage {
-  role: string;
-  content: string;
-}
+interface ChatMessage { role: string; content: string; }
+interface ChatRequest { model: string; messages: ChatMessage[]; stream?: boolean; max_tokens?: number; temperature?: number; }
 
-interface ChatRequest {
-  model: string;
-  messages: ChatMessage[];
-  stream?: boolean;
-  max_tokens?: number;
-  temperature?: number;
-}
-
-export async function handleChatCompletions(
-  env: Env,
-  body: ChatRequest,
-  tenantId: string,
-  apiKeyId?: string
-): Promise<Response> {
-  const start = Date.now();
-  const model = body.model || '@cf/meta/llama-3.1-8b-instruct';
-
-  // rough estimate for credit check (assume 1k in + 1k out)
-  const prices = await getModelPrice(env, model);
-  const estimated = calculateCost(1000, 1000, prices);
-
-  if (!(await hasSufficientCredits(env, tenantId, estimated))) {
-    return Response.json(
-      { error: { message: 'Insufficient credits. Please top up.', type: 'billing_error' } },
-      { status: 402 }
-    );
+export async function handleChatCompletions(env:Env,body:ChatRequest,tenantId:string,apiKeyId?:string):Promise<Response>{
+  const start=Date.now(), requestId=crypto.randomUUID();
+  if(!body || !Array.isArray(body.messages) || body.messages.length===0 || body.messages.some(m=>typeof m.content!=="string" || !["system","user","assistant"].includes(m.role))){
+    return Response.json({error:{message:"A valid messages array is required",type:"invalid_request_error"}},{status:400});
   }
-
-  try {
-    // Call via Workers AI binding (which can route through AI Gateway)
-    // For third-party models use the REST AI Gateway endpoints instead.
-    const result = await env.AI.run(model as any, {
-      messages: body.messages,
-      max_tokens: body.max_tokens ?? 1024,
-      temperature: body.temperature ?? 0.7,
-    }, {
-      gateway: {
-        id: env.AI_GATEWAY_ID || 'default',
-      },
-    });
-
-    // Normalize response (Workers AI shape varies)
-    const responseText =
-      typeof result === 'object' && result !== null && 'response' in result
-        ? (result as any).response
-        : JSON.stringify(result);
-
-    // Token counting is approximate here – production should use actual usage from gateway logs
-    const inputTokens = Math.ceil(
-      body.messages.reduce((acc, m) => acc + m.content.length, 0) / 4
-    );
-    const outputTokens = Math.ceil(String(responseText).length / 4);
-    const cost = calculateCost(inputTokens, outputTokens, prices);
-
-    await recordUsage(env, {
-      tenantId,
-      apiKeyId,
-      model,
-      inputTokens,
-      outputTokens,
-      cost,
-      latencyMs: Date.now() - start,
-      status: 'success',
-    });
-
-    // OpenAI-compatible response shape
+  const model=body.model||"@cf/meta/llama-3.1-8b-instruct";
+  const maxTokens=Math.min(4096,Math.max(1,Math.floor(Number(body.max_tokens)||1024)));
+  let reserved=0;
+  try{
+    const prices=await getModelPrice(env,model), rate=getUsdPhpRate(env);
+    // Conservative character-to-token estimate plus the full requested output allowance.
+    const inputEstimate=Math.ceil(body.messages.reduce((n,m)=>n+m.content.length,0)/3);
+    const estimatedCost=calculateCost(inputEstimate,maxTokens,prices);
+    reserved=customerChargeCentavos(estimatedCost,rate);
+    const ok=await reserveWallet(env,tenantId,requestId,reserved);
+    if(!ok) return Response.json({error:{message:"Insufficient PHP wallet balance. Please top up.",type:"billing_error"}},{status:402});
+    const result=await env.AI.run(model as any,{
+      messages:body.messages,max_tokens:maxTokens,temperature:typeof body.temperature==="number"?Math.max(0,Math.min(2,body.temperature)):0.7,
+    } as any,{gateway:env.AI_GATEWAY_ID?{id:env.AI_GATEWAY_ID}:undefined} as any);
+    const responseText=typeof result==="object"&&result!==null&&"response" in result?(result as any).response:JSON.stringify(result);
+    const inputTokens=Math.ceil(body.messages.reduce((n,m)=>n+m.content.length,0)/3);
+    const outputTokens=Math.ceil(String(responseText).length/3);
+    const actualCost=calculateCost(inputTokens,outputTokens,prices);
+    const actualCharge=customerChargeCentavos(actualCost,rate);
+    await settleWalletReservation(env,tenantId,requestId,reserved,actualCharge);
+    await recordUsage(env,{tenantId,apiKeyId,model,inputTokens,outputTokens,cost:actualCost,latencyMs:Date.now()-start,status:"success",requestId});
     return Response.json({
-      id: 'chatcmpl-' + crypto.randomUUID(),
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: responseText,
-          },
-          finish_reason: 'stop',
-        },
-      ],
-      usage: {
-        prompt_tokens: inputTokens,
-        completion_tokens: outputTokens,
-        total_tokens: inputTokens + outputTokens,
-      },
+      id:"chatcmpl-"+requestId,object:"chat.completion",created:Math.floor(Date.now()/1000),model,
+      choices:[{index:0,message:{role:"assistant",content:responseText},finish_reason:"stop"}],
+      usage:{prompt_tokens:inputTokens,completion_tokens:outputTokens,total_tokens:inputTokens+outputTokens},
     });
-  } catch (err: any) {
-    await recordUsage(env, {
-      tenantId,
-      apiKeyId,
-      model,
-      inputTokens: 0,
-      outputTokens: 0,
-      cost: 0,
-      latencyMs: Date.now() - start,
-      status: 'error',
-    });
-
-    return Response.json(
-      { error: { message: err?.message || 'Model request failed', type: 'api_error' } },
-      { status: 500 }
-    );
+  }catch(error){
+    if(reserved>0) await refundWalletReservation(env,tenantId,requestId,reserved).catch(()=>undefined);
+    return Response.json({error:{message:error instanceof Error?error.message:"Model request failed",type:"api_error"}},{status:500});
   }
 }
