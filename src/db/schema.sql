@@ -57,14 +57,11 @@ CREATE TABLE IF NOT EXISTS model_pricing (
   is_active INTEGER NOT NULL DEFAULT 1
 );
 
--- Seed a few common models (update prices as needed)
-INSERT OR IGNORE INTO model_pricing (model_id, display_name, provider, input_price_per_m, output_price_per_m) VALUES
-  ('@cf/meta/llama-3.1-8b-instruct', 'Llama 3.1 8B', 'workers-ai', 0.028, 0.028),
-  ('@cf/meta/llama-3.3-70b-instruct-fp8-fast', 'Llama 3.3 70B', 'workers-ai', 0.29, 0.29),
-  ('openai/gpt-4o-mini', 'GPT-4o mini', 'openai', 0.15, 0.60),
-  ('openai/gpt-4o', 'GPT-4o', 'openai', 2.50, 10.00),
-  ('anthropic/claude-3-5-sonnet', 'Claude 3.5 Sonnet', 'anthropic', 3.00, 15.00),
-  ('anthropic/claude-3-haiku', 'Claude 3 Haiku', 'anthropic', 0.25, 1.25);
+-- No model is billable until the owner verifies provider costs and enables it.
+-- Prices are provider costs in USD per 1M tokens, not customer prices.
+INSERT OR IGNORE INTO model_pricing (model_id, display_name, provider, input_price_per_m, output_price_per_m, is_active) VALUES
+  ('@cf/meta/llama-3.1-8b-instruct', 'Llama 3.1 8B', 'workers-ai', 0, 0, 0),
+  ('@cf/meta/llama-3.3-70b-instruct-fp8-fast', 'Llama 3.3 70B', 'workers-ai', 0, 0, 0);
 
 -- GitHub connections (for agent deployment)
 CREATE TABLE IF NOT EXISTS github_connections (
