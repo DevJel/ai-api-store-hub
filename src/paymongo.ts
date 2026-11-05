@@ -56,7 +56,9 @@ export async function handlePayMongoWebhook(env: Env, raw: string, signature: st
   const type=event?.data?.attributes?.type || event?.data?.type;
   const session=event?.data?.attributes?.data || event?.data?.data;
   if(type!=="checkout_session.payment.paid") return json({received:true,ignored:true});
-  const attrs=session?.attributes||{}, ref=attrs.reference_number, sessionId=session?.id;\n  const liveMode=event?.data?.attributes?.livemode;\n  if (typeof liveMode === "boolean" && liveMode !== ((env.PAYMONGO_MODE || "test") === "live")) return json({error:"Payment mode mismatch"},400);
+  const attrs=session?.attributes||{}, ref=attrs.reference_number, sessionId=session?.id;
+  const liveMode=event?.data?.attributes?.livemode;
+  if (typeof liveMode === "boolean" && liveMode !== ((env.PAYMONGO_MODE || "test") === "live")) return json({error:"Payment mode mismatch"},400);
   if(!ref&&!sessionId) return json({error:"Missing checkout reference"},400);
   const tx=await env.DB.prepare("SELECT id,tenant_id,amount_php FROM wallet_transactions WHERE provider='paymongo' AND (reference_number=? OR provider_session_id=?) LIMIT 1")
     .bind(ref||"",sessionId||"").first<any>();
