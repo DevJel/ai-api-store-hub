@@ -63,6 +63,8 @@ export async function handlePayMongoWebhook(env: Env, raw: string, signature: st
   const tx=await env.DB.prepare("SELECT id,tenant_id,amount_php FROM wallet_transactions WHERE provider='paymongo' AND (reference_number=? OR provider_session_id=?) LIMIT 1")
     .bind(ref||"",sessionId||"").first<any>();
   if(!tx) return json({received:true,unmatched:true});
+  const paidPayments=Array.isArray(attrs.payments)?attrs.payments.filter((p:any)=>p.status==='paid'):[];
+  if(!paidPayments.some((p:any)=>Number(p.amount)===Number(tx.amount_php)*100)) return json({error:'Paid amount does not match wallet transaction'},400);
   const eventId=event?.data?.id||event?.id||`${sessionId||ref}:paid`;
   // Unique ledger reference makes webhook retries idempotent. Wallet balance is derived from ledger entries.
   await env.DB.prepare("INSERT OR IGNORE INTO wallet_ledger (id,tenant_id,amount_php,entry_type,reference,description) VALUES (?,?,?,'topup',?,'PayMongo confirmed wallet top-up')")
