@@ -15,7 +15,7 @@ export async function handleChatCompletions(env:Env,body:ChatRequest,tenantId:st
   try{
     const prices=await getModelPrice(env,model), rate=getUsdPhpRate(env);
     // Conservative character-to-token estimate plus the full requested output allowance.
-    const inputEstimate=Math.ceil(body.messages.reduce((n,m)=>n+m.content.length,0)/3);
+    const inputEstimate=Math.ceil(body.messages.reduce((n,m)=>n+m.content.length,0)/2);
     const estimatedCost=calculateCost(inputEstimate,maxTokens,prices);
     reserved=customerChargeCentavos(estimatedCost,rate);
     const ok=await reserveWallet(env,tenantId,requestId,reserved);
