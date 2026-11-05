@@ -10,7 +10,7 @@ async function requireAdmin(c: any): Promise<boolean> {
   try {
     const token = await verifySessionToken(header.slice(7), c.env.SESSION_SECRET);
     const row = await c.env.DB.prepare('SELECT email, account_status FROM tenants WHERE id = ?')
-      .bind(token.sub).first<any>();
+      .bind(token.sub).first();
     return !!row && row.account_status === 'active' && row.email.toLowerCase() === c.env.ADMIN_EMAIL.toLowerCase();
   } catch { return false; }
 }
@@ -22,12 +22,12 @@ admin.use('/admin-api/*', async (c, next) => {
 
 admin.get('/admin-api/overview', async (c) => {
   const [users, paid, pending, balance, usage, split] = await Promise.all([
-    c.env.DB.prepare('SELECT COUNT(*) AS total, SUM(CASE WHEN account_status = \'active\' THEN 1 ELSE 0 END) AS active FROM tenants').first<any>(),
-    c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS cents FROM wallet_transactions WHERE status='paid'").first<any>(),
-    c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS php FROM wallet_transactions WHERE status='pending'").first<any>(),
-    c.env.DB.prepare('SELECT COALESCE(SUM(amount_php),0) AS cents FROM wallet_ledger').first<any>(),
-    c.env.DB.prepare("SELECT COUNT(*) AS requests, COALESCE(SUM(cost),0) AS provider_cost_usd FROM usage_logs WHERE created_at >= datetime('now','-30 days')").first<any>(),
-    c.env.DB.prepare("SELECT COALESCE(SUM(platform_share_cents),0) AS platform_cents, COALESCE(SUM(provider_share_cents),0) AS provider_cents, COALESCE(SUM(customer_charge_cents),0) AS charged_cents FROM revenue_allocations WHERE created_at >= datetime('now','-30 days')").first<any>(),
+    c.env.DB.prepare('SELECT COUNT(*) AS total, SUM(CASE WHEN account_status = \'active\' THEN 1 ELSE 0 END) AS active FROM tenants').first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS cents FROM wallet_transactions WHERE status='paid'").first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS php FROM wallet_transactions WHERE status='pending'").first(),
+    c.env.DB.prepare('SELECT COALESCE(SUM(amount_php),0) AS cents FROM wallet_ledger').first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS requests, COALESCE(SUM(cost),0) AS provider_cost_usd FROM usage_logs WHERE created_at >= datetime('now','-30 days')").first(),
+    c.env.DB.prepare("SELECT COALESCE(SUM(platform_share_cents),0) AS platform_cents, COALESCE(SUM(provider_share_cents),0) AS provider_cents, COALESCE(SUM(customer_charge_cents),0) AS charged_cents FROM revenue_allocations WHERE created_at >= datetime('now','-30 days')").first(),
   ]);
   return c.json({ users, payments: { paidCount: paid?.count || 0, paidPhp: Number(paid?.cents || 0), pendingCount: pending?.count || 0, pendingPhp: pending?.php || 0 }, walletLiabilityPhp: Number(balance?.cents || 0) / 100, usage30d: usage, revenueSplit30d: { platformPhp: Number(split?.platform_cents || 0) / 100, providerPhp: Number(split?.provider_cents || 0) / 100, chargedPhp: Number(split?.charged_cents || 0) / 100 } });
 });
@@ -64,7 +64,7 @@ admin.post('/admin-api/users/:id/adjustment', async (c) => {
   const cents = body.amountPhp * 100;
   const ref = 'admin-adjustment:' + crypto.randomUUID();
   if (cents < 0) {
-    const balance = await c.env.DB.prepare('SELECT COALESCE(SUM(amount_php),0) AS cents FROM wallet_ledger WHERE tenant_id=?').bind(id).first<any>();
+    const balance = await c.env.DB.prepare('SELECT COALESCE(SUM(amount_php),0) AS cents FROM wallet_ledger WHERE tenant_id=?').bind(id).first();
     if (Number(balance?.cents || 0) < Math.abs(cents)) return c.json({ error: 'Adjustment would make wallet negative' }, 409);
   }
   await c.env.DB.prepare("INSERT INTO wallet_ledger (id,tenant_id,amount_php,entry_type,reference,description) VALUES (?,?,?,'adjustment',?,?)")
