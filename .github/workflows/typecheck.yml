@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - feat/operava-commercial-maya-billing
+      - feat/prepaid-user-access-admin
   pull_request:
     branches: [main]
 jobs:
