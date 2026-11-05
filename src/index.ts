@@ -77,7 +77,7 @@ app.post('/auth/login', async (c) => {
   if (!body.email || !body.password) return c.json({ error: 'email and password required' }, 400);
   if (!c.env.SESSION_SECRET || c.env.SESSION_SECRET.length < 32) return c.json({ error: 'Authentication service is not configured' }, 503);
 
-  const row = await c.env.DB.prepare(
+  const row: any = await c.env.DB.prepare(
     'SELECT id, email, password_hash, name, plan, credits_balance FROM tenants WHERE email = ?'
   )
     .bind(body.email.toLowerCase())
@@ -122,7 +122,7 @@ async function requireSession(c: any): Promise<Tenant | Response> {
       auth.slice(7),
       c.env.SESSION_SECRET || 'dev-secret-change-me'
     );
-    const row = await c.env.DB.prepare(
+    const row: any = await c.env.DB.prepare(
       'SELECT id, email, name, plan, credits_balance, account_status FROM tenants WHERE id = ?'
     )
       .bind(payload.sub)
