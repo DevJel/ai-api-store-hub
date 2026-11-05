@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:create": "wrangler d1 create ai-api-hub",
-    "db:migrate": "wrangler d1 execute ai-api-hub --file=./src/db/schema.sql",
-    "db:migrate:local": "wrangler d1 execute ai-api-hub --local --file=./src/db/schema.sql",
+    "db:create": "wrangler d1 create ai-api-store-hub",
+    "db:migrate": "wrangler d1 execute ai-api-store-hub --remote --file=./src/db/schema.sql && wrangler d1 execute ai-api-store-hub --remote --file=./src/db/migrations/0002_paymongo_wallet.sql",
+    "db:migrate:local": "wrangler d1 execute ai-api-store-hub --local --file=./src/db/schema.sql && wrangler d1 execute ai-api-store-hub --local --file=./src/db/migrations/0002_paymongo_wallet.sql",
     "types": "wrangler types"
   },
   "devDependencies": {
