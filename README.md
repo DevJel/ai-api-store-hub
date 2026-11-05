@@ -9,7 +9,10 @@ Operated by **Operava Technologies**.
 - Payments: PayMongo Hosted Checkout v2 and signed webhook confirmation.
 
 ## PayMongo setup
-Set Worker secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `SESSION_SECRET`. Set `PAYMONGO_MODE=test` for staging or `live` for production. Register `https://YOUR_DOMAIN/webhooks/paymongo` for `checkout_session.payment.paid`. The webhook signing secret is different from the API secret. Browser redirects never credit wallets.
+Set Worker secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `SESSION_SECRET`. Set `PAYMONGO_MODE=test` for staging or `live` for production. Set `AI_GATEWAY_ID=operava-api-store-hub` to route Workers AI inference through the dedicated AI Gateway. Register `https://YOUR_DOMAIN/webhooks/paymongo` for `checkout_session.payment.paid`. The webhook signing secret is different from the API secret. Browser redirects never credit wallets.
+
+## Web console
+Open `/console` for account registration/login, API-key generation and revocation, wallet balance, PayMongo top-up, and usage summary.
 
 ## API
 - `POST /auth/register`, `POST /auth/login`
