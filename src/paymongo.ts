@@ -68,7 +68,7 @@ export async function handlePayMongoWebhook(env: Env, raw: string, signature: st
   const eventId=event?.data?.id||event?.id||`${sessionId||ref}:paid`;
   // Unique ledger reference makes webhook retries idempotent. Wallet balance is derived from ledger entries.
   await env.DB.prepare("INSERT OR IGNORE INTO wallet_ledger (id,tenant_id,amount_php,entry_type,reference,description) VALUES (?,?,?,'topup',?,'PayMongo confirmed wallet top-up')")
-    .bind(`paymongo:${tx.id}`,tx.tenant_id,tx.amount_php,`paymongo:${tx.id}`).run();
+    .bind(`paymongo:${tx.id}`,tx.tenant_id,tx.amount_php*100,`paymongo:${tx.id}`).run();
   await env.DB.prepare("UPDATE wallet_transactions SET status='paid',paid_at=COALESCE(paid_at,datetime('now')),provider_event_id=COALESCE(provider_event_id,?) WHERE id=?")
     .bind(eventId,tx.id).run();
   return json({received:true});
