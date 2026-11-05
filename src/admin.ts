@@ -21,14 +21,15 @@ admin.use('/admin-api/*', async (c, next) => {
 });
 
 admin.get('/admin-api/overview', async (c) => {
-  const [users, paid, pending, balance, usage] = await Promise.all([
+  const [users, paid, pending, balance, usage, split] = await Promise.all([
     c.env.DB.prepare('SELECT COUNT(*) AS total, SUM(CASE WHEN account_status = \'active\' THEN 1 ELSE 0 END) AS active FROM tenants').first<any>(),
     c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS cents FROM wallet_transactions WHERE status='paid'").first<any>(),
     c.env.DB.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(amount_php),0) AS php FROM wallet_transactions WHERE status='pending'").first<any>(),
     c.env.DB.prepare('SELECT COALESCE(SUM(amount_php),0) AS cents FROM wallet_ledger').first<any>(),
     c.env.DB.prepare("SELECT COUNT(*) AS requests, COALESCE(SUM(cost),0) AS provider_cost_usd FROM usage_logs WHERE created_at >= datetime('now','-30 days')").first<any>(),
+    c.env.DB.prepare("SELECT COALESCE(SUM(platform_share_cents),0) AS platform_cents, COALESCE(SUM(provider_share_cents),0) AS provider_cents, COALESCE(SUM(customer_charge_cents),0) AS charged_cents FROM revenue_allocations WHERE created_at >= datetime('now','-30 days')").first<any>(),
   ]);
-  return c.json({ users, payments: { paidCount: paid?.count || 0, paidPhp: Number(paid?.cents || 0) / 100, pendingCount: pending?.count || 0, pendingPhp: pending?.php || 0 }, walletLiabilityPhp: Number(balance?.cents || 0) / 100, usage30d: usage });
+  return c.json({ users, payments: { paidCount: paid?.count || 0, paidPhp: Number(paid?.cents || 0) / 100, pendingCount: pending?.count || 0, pendingPhp: pending?.php || 0 }, walletLiabilityPhp: Number(balance?.cents || 0) / 100, usage30d: usage, revenueSplit30d: { platformPhp: Number(split?.platform_cents || 0) / 100, providerPhp: Number(split?.provider_cents || 0) / 100, chargedPhp: Number(split?.charged_cents || 0) / 100 } });
 });
 
 admin.get('/admin-api/users', async (c) => {
