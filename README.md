@@ -12,21 +12,32 @@ Operated by **Operava Technologies**.
 Set Worker secrets `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `SESSION_SECRET`. Set `PAYMONGO_MODE=test` for staging or `live` for production. Set `AI_GATEWAY_ID=operava-api-store-hub` to route Workers AI inference through the dedicated AI Gateway. Register `https://YOUR_DOMAIN/webhooks/paymongo` for `checkout_session.payment.paid`. The webhook signing secret is different from the API secret. Browser redirects never credit wallets.
 
 ## Web console
-Open `/console` for account registration/login, API-key generation and revocation, wallet balance, PayMongo top-up, and usage summary.
+Open `/console` for self-service account registration/login, editable user profile, API-key generation/revocation, prepaid wallet balance, PayMongo top-up, transaction history and usage summary. Open `/admin` for the owner dashboard; the server only grants access when the signed-in account email matches the `ADMIN_EMAIL` Worker secret.
 
 ## API
 - `POST /auth/register`, `POST /auth/login`
 - `POST /keys`
 - `POST /billing/checkout` (minimum PHP 100)
 - `GET /billing/wallet`
+- `GET /profile`, `PATCH /profile`
+- `GET /admin-api/overview`, `GET /admin-api/users`, `PATCH /admin-api/users/:id/status`, `POST /admin-api/users/:id/adjustment` (owner only)
 - `POST /webhooks/paymongo`
 - `GET /v1/models`, `POST /v1/chat/completions`
 
 ## Database
-Apply `src/db/schema.sql`, then `src/db/migrations/0002_paymongo_wallet.sql`. Never apply a migration to production before taking a backup and validating the target D1 database.
+Apply `src/db/schema.sql`, then migrations `0002_paymongo_wallet.sql`, `0003_user_access_admin.sql`, and `0004_revenue_split.sql`. Never apply a migration to production before taking a backup and validating the target D1 database.
 
 ## Pricing
 All wallet values are PHP. Verify provider model costs and the USD/PHP exchange rate before enabling a model. Use the exact 30% gross-margin formula, not a 30% markup. Model price configuration must be owner-controlled and auditable.
 
 ## Production requirements
 Configure the production D1 binding, Cloudflare AI binding/Gateway, PayMongo live credentials and webhook, session secret, and verified per-model costs. Test duplicate webhook delivery, failed/cancelled checkout, replayed signatures, insufficient balance and refunds before accepting live payments.
+
+
+## User access and owner controls
+- Users can self-register, sign in, edit their display name, see their prepaid balance and transaction history, manage API keys, and inspect usage.
+- Suspended accounts cannot use session routes or API keys. Admin suspension revokes active keys.
+- Set `ADMIN_EMAIL` as a server-side Worker secret. The admin console at `/admin` requires an authenticated session whose database email exactly matches this configured address.
+- Admin account changes and wallet adjustments are recorded in `admin_audit_log`; wallet adjustments require a reason and cannot create a negative balance.
+- Each completed metered request writes a unique immutable revenue allocation: 30% platform / 70% provider, in PHP centavos. These are accounting allocations, not automatic bank payouts.
+- Wallet ledger amounts are stored in centavos; API responses convert the balance to PHP for display.
