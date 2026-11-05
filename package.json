@@ -9,7 +9,8 @@
     "db:create": "wrangler d1 create ai-api-store-hub",
     "db:migrate": "wrangler d1 execute ai-api-store-hub --remote --file=./src/db/schema.sql && wrangler d1 execute ai-api-store-hub --remote --file=./src/db/migrations/0002_paymongo_wallet.sql && wrangler d1 execute ai-api-store-hub --remote --file=./src/db/migrations/0003_user_access_admin.sql && wrangler d1 execute ai-api-store-hub --remote --file=./src/db/migrations/0004_revenue_split.sql",
     "db:migrate:local": "wrangler d1 execute ai-api-store-hub --local --file=./src/db/schema.sql && wrangler d1 execute ai-api-store-hub --local --file=./src/db/migrations/0002_paymongo_wallet.sql && wrangler d1 execute ai-api-store-hub --local --file=./src/db/migrations/0003_user_access_admin.sql && wrangler d1 execute ai-api-store-hub --local --file=./src/db/migrations/0004_revenue_split.sql",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241022.0",
