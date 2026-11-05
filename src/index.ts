@@ -44,7 +44,7 @@ app.post('/auth/register', async (c) => {
 
   const existing = await c.env.DB.prepare('SELECT id FROM tenants WHERE email = ?')
     .bind(body.email.toLowerCase())
-    .first();
+    .first() as any;
   if (existing) return c.json({ error: 'Email already registered' }, 409);
 
   const id = crypto.randomUUID();
@@ -126,7 +126,7 @@ async function requireSession(c: any): Promise<Tenant | Response> {
       'SELECT id, email, name, plan, credits_balance, account_status FROM tenants WHERE id = ?'
     )
       .bind(payload.sub)
-      .first<any>();
+      .first() as any;
     if (!row || row.account_status !== 'active') return c.json({ error: 'Account is unavailable' }, 403);
     return {
       id: row.id,
@@ -170,7 +170,7 @@ app.patch('/profile', async (c) => {
 app.post('/keys', async (c) => {
   const tenantOrErr = await requireSession(c);
   if (tenantOrErr instanceof Response) return tenantOrErr;
-  const body = await c.req.json<{ name?: string }>().catch(() => ({}));
+  const body: { name?: string } = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
   const { raw, record } = await createApiKey(c.env, tenantOrErr.id, body.name);
   return c.json({ apiKey: raw, prefix: record.key_prefix, id: record.id });
 });
