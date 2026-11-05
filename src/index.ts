@@ -81,7 +81,7 @@ app.post('/auth/login', async (c) => {
     'SELECT id, email, password_hash, name, plan, credits_balance FROM tenants WHERE email = ?'
   )
     .bind(body.email.toLowerCase())
-    .first<any>();
+    .first();
 
   if (!row || !(await verifyPassword(body.password, row.password_hash))) {
     return c.json({ error: 'Invalid email or password' }, 401);
@@ -159,7 +159,7 @@ app.get('/profile', async (c) => {
 app.patch('/profile', async (c) => {
   const tenantOrErr = await requireSession(c);
   if (tenantOrErr instanceof Response) return tenantOrErr;
-  const body = await c.req.json<{ name?: string }>().catch(() => ({}));
+  const body: { name?: string } = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
   if (typeof body.name !== 'string' || body.name.trim().length < 1 || body.name.length > 100) return c.json({ error: 'Name must be 1–100 characters' }, 400);
   await c.env.DB.prepare("UPDATE tenants SET name=?,updated_at=datetime('now') WHERE id=?").bind(body.name.trim(),tenantOrErr.id).run();
   return c.json({ updated: true, name: body.name.trim() });
