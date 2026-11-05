@@ -7,6 +7,8 @@ import { handleChatCompletions } from './gateway';
 import { createPayMongoCheckout, handlePayMongoWebhook, MINIMUM_WALLET_TOPUP_PHP } from './paymongo';
 import { walletBalanceCentavos } from './billing';
 import { consolePage } from './pages';
+import { adminPage } from './admin-page';
+import adminRoutes from './admin';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -25,6 +27,8 @@ app.get('/about', (c) => c.html(`<!doctype html><html lang="en"><head><meta char
 </style></head><body><header><div class="brand">AI API <span>STORE HUB</span></div><nav><a href="#platform">Platform</a><a href="#developers">Developers</a><a href="/about">About</a><a href="https://github.com/DevJel/ai-api-store-hub">GitHub</a></nav></header><main><section class="hero"><div class="eyebrow">Operava Technologies</div><h1>One gateway.<br>More ways to build with AI.</h1><p>A unified developer gateway for AI model access, customer-generated API keys, prepaid usage and clear metering — powered by Cloudflare infrastructure.</p><div class="actions"><a class="btn" href="#developers">Explore the API</a><a class="btn secondary" href="https://github.com/DevJel/ai-api-store-hub">View source</a></div></section><section id="platform"><h2>Built for developers and teams</h2><div class="grid"><article class="card"><h3>Unified AI API</h3><p>OpenAI-compatible chat completions through the Cloudflare Workers AI runtime.</p></article><article class="card"><h3>Own API keys</h3><p>Generate individual <code>sk-ash-</code> keys. Secret values are shown once and stored as hashes.</p></article><article class="card"><h3>Usage wallet</h3><p>Prepaid PHP wallet with metered usage and a minimum top-up of ₱100 through PayMongo.</p></article><article class="card"><h3>Transparent pricing</h3><p>Model prices are activated only after provider costs and exchange rates are verified.</p></article></div></section><section id="developers"><h2>Developer endpoint</h2><p class="muted">Base URL: this deployment's domain. Use your generated API key as a Bearer token.</p><p><code>POST /v1/chat/completions</code> &nbsp; <code>GET /v1/models</code></p><p><code>POST /billing/checkout</code> creates a PayMongo checkout session from an authenticated account. Payment confirmation is handled server-side by a signed webhook — never by the browser redirect.</p></section><section id="about"><h2>About this platform</h2><p class="muted">AI API Store Hub is a technology platform operated by Operava Technologies, providing API infrastructure, automation and developer services. Cloudflare provides the underlying edge runtime and AI services; payment processing is handled by PayMongo.</p></section></main><footer><span>© 2026 Operava Technologies. All Rights Reserved.</span><span>Operate. Automate. Accelerate.</span></footer></body></html>`));
 
 app.get('/console', (c) => c.html(consolePage));
+app.get('/admin', (c) => c.html(adminPage));
+app.route('/', adminRoutes);
 app.get('/billing/success', (c) => c.html('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment submitted</title><body style="font:16px system-ui;background:#17151d;color:#f8f6fb;padding:10vh 8vw"><h1>Payment submitted</h1><p>Your wallet will update after PayMongo confirms the payment. This page does not itself confirm or credit funds.</p><p><a style="color:#c6b4ff" href="/console">Return to developer console</a></p><small>Operava Technologies</small></body></html>'));
 app.get('/billing/cancel', (c) => c.html('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Checkout not completed</title><body style="font:16px system-ui;background:#17151d;color:#f8f6fb;padding:10vh 8vw"><h1>Checkout not completed</h1><p>No wallet credit has been added. You can return to the console and try again.</p><p><a style="color:#c6b4ff" href="/console">Return to developer console</a></p><small>Operava Technologies</small></body></html>'));
 
@@ -40,7 +44,7 @@ app.post('/auth/register', async (c) => {
 
   const existing = await c.env.DB.prepare('SELECT id FROM tenants WHERE email = ?')
     .bind(body.email.toLowerCase())
-    .first();
+    .first() as any;
   if (existing) return c.json({ error: 'Email already registered' }, 409);
 
   const id = crypto.randomUUID();
@@ -73,11 +77,11 @@ app.post('/auth/login', async (c) => {
   if (!body.email || !body.password) return c.json({ error: 'email and password required' }, 400);
   if (!c.env.SESSION_SECRET || c.env.SESSION_SECRET.length < 32) return c.json({ error: 'Authentication service is not configured' }, 503);
 
-  const row = await c.env.DB.prepare(
+  const row: any = await c.env.DB.prepare(
     'SELECT id, email, password_hash, name, plan, credits_balance FROM tenants WHERE email = ?'
   )
     .bind(body.email.toLowerCase())
-    .first<any>();
+    .first();
 
   if (!row || !(await verifyPassword(body.password, row.password_hash))) {
     return c.json({ error: 'Invalid email or password' }, 401);
@@ -118,12 +122,12 @@ async function requireSession(c: any): Promise<Tenant | Response> {
       auth.slice(7),
       c.env.SESSION_SECRET || 'dev-secret-change-me'
     );
-    const row = await c.env.DB.prepare(
-      'SELECT id, email, name, plan, credits_balance FROM tenants WHERE id = ?'
+    const row: any = await c.env.DB.prepare(
+      'SELECT id, email, name, plan, credits_balance, account_status FROM tenants WHERE id = ?'
     )
       .bind(payload.sub)
-      .first<any>();
-    if (!row) return c.json({ error: 'Tenant not found' }, 401);
+      .first() as any;
+    if (!row || row.account_status !== 'active') return c.json({ error: 'Account is unavailable' }, 403);
     return {
       id: row.id,
       email: row.email,
@@ -142,12 +146,31 @@ async function requireApiKey(c: any) {
   return validateApiKey(c.env, auth.slice(7));
 }
 
+// ---------- User profile ----------
+
+app.get('/profile', async (c) => {
+  const tenantOrErr = await requireSession(c);
+  if (tenantOrErr instanceof Response) return tenantOrErr;
+  const row = await c.env.DB.prepare('SELECT id,email,name,plan,created_at FROM tenants WHERE id=?').bind(tenantOrErr.id).first();
+  const balance = await walletBalanceCentavos(c.env, tenantOrErr.id);
+  return c.json({ profile: row, wallet: { currency: 'PHP', balancePhp: balance / 100, balanceCentavos: balance } });
+});
+
+app.patch('/profile', async (c) => {
+  const tenantOrErr = await requireSession(c);
+  if (tenantOrErr instanceof Response) return tenantOrErr;
+  const body: { name?: string } = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
+  if (typeof body.name !== 'string' || body.name.trim().length < 1 || body.name.length > 100) return c.json({ error: 'Name must be 1–100 characters' }, 400);
+  await c.env.DB.prepare("UPDATE tenants SET name=?,updated_at=datetime('now') WHERE id=?").bind(body.name.trim(),tenantOrErr.id).run();
+  return c.json({ updated: true, name: body.name.trim() });
+});
+
 // ---------- Keys & Billing (session auth) ----------
 
 app.post('/keys', async (c) => {
   const tenantOrErr = await requireSession(c);
   if (tenantOrErr instanceof Response) return tenantOrErr;
-  const body = await c.req.json<{ name?: string }>().catch(() => ({}));
+  const body: { name?: string } = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
   const { raw, record } = await createApiKey(c.env, tenantOrErr.id, body.name);
   return c.json({ apiKey: raw, prefix: record.key_prefix, id: record.id });
 });
@@ -214,7 +237,7 @@ app.get('/billing/wallet', async (c) => {
   const transactions = await c.env.DB.prepare(
     "SELECT id, reference_number, amount_php, status, created_at, paid_at FROM wallet_transactions WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 25"
   ).bind(tenantOrErr.id).all();
-  return c.json({ currency: 'PHP', balancePhp: balance?.balance_php ?? 0, transactions: transactions.results ?? [] });
+  return c.json({ currency: 'PHP', balancePhp: Number(balance?.balance_php ?? 0) / 100, balanceCentavos: Number(balance?.balance_php ?? 0), transactions: transactions.results ?? [] });
 });
 
 app.post('/webhooks/paymongo', async (c) => {

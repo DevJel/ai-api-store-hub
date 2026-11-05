@@ -41,10 +41,10 @@ export async function validateApiKey(
   const keyHash = await hashApiKey(rawKey);
 
   const row = await env.DB.prepare(
-    `SELECT k.*, t.id as tid, t.email, t.name as tname, t.plan, t.credits_balance
+    `SELECT k.*, t.id as tid, t.email, t.name as tname, t.plan, t.credits_balance, t.account_status
      FROM api_keys k
      JOIN tenants t ON t.id = k.tenant_id
-     WHERE k.key_hash = ? AND k.is_active = 1`
+     WHERE k.key_hash = ? AND k.is_active = 1 AND t.account_status = 'active'`
   )
     .bind(keyHash)
     .first<any>();
