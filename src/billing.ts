@@ -8,7 +8,7 @@ export function getUsdPhpRate(env: Env): number {
 export async function getModelPrice(env: Env, modelId: string) {
   const row = await env.DB.prepare('SELECT input_price_per_m, output_price_per_m FROM model_pricing WHERE model_id = ? AND is_active = 1')
     .bind(modelId).first<{input_price_per_m:number;output_price_per_m:number}>();
-  if (!row) throw new Error('Model is not enabled or has no verified provider cost');
+  if (!row || row.input_price_per_m <= 0 || row.output_price_per_m <= 0) throw new Error('Model is not enabled or has no verified provider cost');
   return { input: row.input_price_per_m, output: row.output_price_per_m };
 }
 export function calculateCost(inputTokens:number, outputTokens:number, prices:{input:number;output:number}) {
