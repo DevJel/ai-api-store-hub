@@ -22,4 +22,4 @@ PAYMONGO_MODE = "test"
 # SESSION_SECRET
 # PAYMONGO_SECRET_KEY
 # PAYMONGO_WEBHOOK_SECRET
-# USD_PHP_RATE
+# Set USD_PHP_RATE as a non-secret Worker variable (verified PHP per USD).
