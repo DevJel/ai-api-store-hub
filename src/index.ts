@@ -4,7 +4,7 @@ import type { Env, Tenant } from './types';
 import { hashPassword, verifyPassword, createSessionToken, verifySessionToken } from './auth';
 import { createApiKey, validateApiKey } from './keys';
 import { handleChatCompletions } from './gateway';
-import { addCredits } from './billing';
+import { createPayMongoCheckout, handlePayMongoWebhook, MINIMUM_WALLET_TOPUP_PHP } from './paymongo';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -167,15 +167,35 @@ app.get('/usage', async (c) => {
   });
 });
 
-app.post('/billing/topup', async (c) => {
-  // Demo only – in production integrate Stripe / payment provider
+app.post('/billing/checkout', async (c) => {
   const tenantOrErr = await requireSession(c);
   if (tenantOrErr instanceof Response) return tenantOrErr;
-  const body = await c.req.json<{ amount: number }>();
-  if (!body.amount || body.amount <= 0) return c.json({ error: 'Invalid amount' }, 400);
+  const body = await c.req.json<{ amountPhp: number }>().catch(() => ({ amountPhp: 0 }));
+  if (!Number.isSafeInteger(body.amountPhp) || body.amountPhp < MINIMUM_WALLET_TOPUP_PHP) {
+    return c.json({ error: 'Minimum wallet top-up is PHP 100' }, 400);
+  }
+  try {
+    const checkout = await createPayMongoCheckout(c.env, tenantOrErr.id, tenantOrErr.email, body.amountPhp, new URL(c.req.url).origin);
+    return c.json({ checkoutUrl: checkout.checkoutUrl, reference: checkout.reference, amountPhp: checkout.amountPhp });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Checkout creation failed' }, 502);
+  }
+});
 
-  await addCredits(c.env, tenantOrErr.id, body.amount);
-  return c.json({ message: `Added $${body.amount} credits (demo)`, newBalance: tenantOrErr.credits_balance + body.amount });
+app.get('/billing/wallet', async (c) => {
+  const tenantOrErr = await requireSession(c);
+  if (tenantOrErr instanceof Response) return tenantOrErr;
+  const balance = await c.env.DB.prepare('SELECT COALESCE(SUM(amount_php), 0) AS balance_php FROM wallet_ledger WHERE tenant_id = ?')
+    .bind(tenantOrErr.id).first<{ balance_php: number }>();
+  const transactions = await c.env.DB.prepare(
+    "SELECT id, reference_number, amount_php, status, created_at, paid_at FROM wallet_transactions WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 25"
+  ).bind(tenantOrErr.id).all();
+  return c.json({ currency: 'PHP', balancePhp: balance?.balance_php ?? 0, transactions: transactions.results ?? [] });
+});
+
+app.post('/webhooks/paymongo', async (c) => {
+  const raw = await c.req.text();
+  return handlePayMongoWebhook(c.env, raw, c.req.header('Paymongo-Signature') ?? null);
 });
 
 // ---------- Public Model API (API key auth) ----------
