@@ -29,6 +29,10 @@ export async function handleChatCompletions(env:Env,body:ChatRequest,tenantId:st
     const actualCost=calculateCost(inputTokens,outputTokens,prices);
     const actualCharge=customerChargeCentavos(actualCost,rate);
     await settleWalletReservation(env,tenantId,requestId,reserved,actualCharge);
+    const platformShare = Math.floor(actualCharge * 30 / 100);
+    const providerShare = actualCharge - platformShare;
+    await env.DB.prepare(`INSERT OR IGNORE INTO revenue_allocations (id,request_id,tenant_id,provider_code,customer_charge_cents,platform_share_cents,provider_share_cents) VALUES (?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(),requestId,tenantId,'workers-ai',actualCharge,platformShare,providerShare).run();
     await recordUsage(env,{tenantId,apiKeyId,model,inputTokens,outputTokens,cost:actualCost,latencyMs:Date.now()-start,status:"success",requestId});
     return Response.json({
       id:"chatcmpl-"+requestId,object:"chat.completion",created:Math.floor(Date.now()/1000),model,
