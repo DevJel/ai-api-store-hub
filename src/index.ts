@@ -49,7 +49,7 @@ app.post('/auth/register', async (c) => {
   const { raw, record } = await createApiKey(c.env, id, 'Default');
 
   const token = await createSessionToken(
-    { id, email: body.email, name: body.name ?? null, plan: 'free', credits_balance: 5 },
+    { id, email: body.email, name: body.name ?? null, plan: 'free', credits_balance: 0 },
     c.env.SESSION_SECRET
   );
 
