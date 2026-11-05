@@ -3,6 +3,7 @@ export interface Env {
   AI: Ai;
   ASSETS?: Fetcher;
   SESSION_SECRET: string;
+  ADMIN_EMAIL?: string;
   PAYMONGO_SECRET_KEY?: string;
   PAYMONGO_WEBHOOK_SECRET?: string;
   PAYMONGO_MODE?: "test" | "live";
